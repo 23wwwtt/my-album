@@ -31,12 +31,8 @@ body:hover .arrow,.arrow.show{opacity:1}
 .loading.show{opacity:1}
 .loading::after{content:'';width:24px;height:24px;border:2px solid rgba(255,255,255,0.15);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* Tap zones (mobile) */
-.tap-zone{position:fixed;top:0;bottom:60px;width:20%;z-index:2}
-.tap-zone.left{left:0}
-.tap-zone.right{right:0}
 /* Responsive */
-@media(max-width:640px){#header{padding:12px 16px}.arrow{width:40px;height:40px;font-size:20px}#prev{left:8px}#next{right:8px}body:not(.touching) .arrow{opacity:1}.watermark{bottom:14px;right:14px;font-size:11px}}
+@media(max-width:640px){#header{padding:12px 16px}.arrow{width:40px;height:40px;font-size:20px}#prev{left:8px}#next{right:8px}.arrow{opacity:1}.watermark{bottom:14px;right:14px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -50,9 +46,6 @@ body:hover .arrow,.arrow.show{opacity:1}
 
 <button class="arrow" id="prev">&#8249;</button>
 <button class="arrow" id="next">&#8250;</button>
-
-<div class="tap-zone left" id="zone-left"></div>
-<div class="tap-zone right" id="zone-right"></div>
 
 <div class="watermark">&copy; My Album</div>
 <div class="loading" id="loading"></div>
@@ -157,29 +150,29 @@ function goNext() { goTo(current + 1) }
 
 $('prev').addEventListener('click', goPrev)
 $('next').addEventListener('click', goNext)
-$('zone-left').addEventListener('click', goPrev)
-$('zone-right').addEventListener('click', goNext)
-
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') goPrev()
   if (e.key === 'ArrowRight') goNext()
 })
 
-// Swipe on left/right edges only
-let sx = 0, ex = 0, swiping = false
+// Edge tap/swipe (left 20% / right 20%)
 document.addEventListener('touchstart', e => {
   const x = e.changedTouches[0].screenX
   const w = window.innerWidth
   if (x > w * 0.2 && x < w * 0.8) return
-  sx = x
-  swiping = true
+  e._edgeX = x
 }, { passive: true })
 document.addEventListener('touchend', e => {
-  if (!swiping) return
-  swiping = false
-  ex = e.changedTouches[0].screenX
+  const sx = e._edgeX
+  if (sx == null) return
+  const ex = e.changedTouches[0].screenX
   const diff = sx - ex
-  if (Math.abs(diff) > 30) diff > 0 ? goNext() : goPrev()
+  const w = window.innerWidth
+  if (Math.abs(diff) > 30) {
+    diff > 0 ? goNext() : goPrev()
+  } else {
+    sx < w * 0.2 ? goPrev() : goNext()
+  }
 }, { passive: true })
 
 // Auto show arrows on mobile
