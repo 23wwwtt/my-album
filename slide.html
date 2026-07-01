@@ -165,13 +165,15 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') goNext()
 })
 
-// Touch swipe
+// Touch swipe (skip if touching video controls)
 let sx = 0, ex = 0
 slides.addEventListener('touchstart', e => {
+  if (e.target.closest('video')) return
   sx = e.changedTouches[0].screenX
   document.body.classList.add('touching')
 }, { passive: true })
 slides.addEventListener('touchend', e => {
+  if (e.target.closest('video')) return
   ex = e.changedTouches[0].screenX
   const diff = sx - ex
   if (Math.abs(diff) > 40) diff > 0 ? goNext() : goPrev()
