@@ -32,7 +32,7 @@ body:hover .arrow,.arrow.show{opacity:1}
 .loading::after{content:'';width:24px;height:24px;border:2px solid rgba(255,255,255,0.15);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* Tap zones (mobile) */
-.tap-zone{position:fixed;top:0;bottom:60px;width:28%;z-index:2}
+.tap-zone{position:fixed;top:0;bottom:60px;width:20%;z-index:2}
 .tap-zone.left{left:0}
 .tap-zone.right{right:0}
 /* Responsive */
@@ -165,19 +165,21 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') goNext()
 })
 
-// Touch swipe (skip if touching video controls)
-let sx = 0, ex = 0
-slides.addEventListener('touchstart', e => {
-  if (e.target.closest('video')) return
-  sx = e.changedTouches[0].screenX
-  document.body.classList.add('touching')
+// Swipe on left/right edges only
+let sx = 0, ex = 0, swiping = false
+document.addEventListener('touchstart', e => {
+  const x = e.changedTouches[0].screenX
+  const w = window.innerWidth
+  if (x > w * 0.2 && x < w * 0.8) return
+  sx = x
+  swiping = true
 }, { passive: true })
-slides.addEventListener('touchend', e => {
-  if (e.target.closest('video')) return
+document.addEventListener('touchend', e => {
+  if (!swiping) return
+  swiping = false
   ex = e.changedTouches[0].screenX
   const diff = sx - ex
-  if (Math.abs(diff) > 40) diff > 0 ? goNext() : goPrev()
-  document.body.classList.remove('touching')
+  if (Math.abs(diff) > 30) diff > 0 ? goNext() : goPrev()
 }, { passive: true })
 
 // Auto show arrows on mobile
