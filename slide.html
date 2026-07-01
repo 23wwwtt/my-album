@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>呼伦贝尔之行</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#000;color:#fff;overflow:hidden;height:100vh;touch-action:pan-y}
+/* Header info */
+#header{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(rgba(0,0,0,0.6),transparent);pointer-events:none}
+#header>*{pointer-events:auto}
+#header .title{font-size:14px;font-weight:600;letter-spacing:1px;opacity:0.8}
+#header .counter{font-size:13px;opacity:0.6}
+/* Slide container */
+#slides{display:flex;height:100vh;transition:transform .35s cubic-bezier(.25,.46,.45,.94);will-change:transform}
+.slide{flex:0 0 100vw;height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
+.slide img,.slide video{max-width:100vw;max-height:100vh;object-fit:contain;user-select:none;-webkit-user-drag:none}
+.slide video{max-height:90vh}
+/* Navigation arrows */
+.arrow{position:fixed;top:50%;transform:translateY(-50%);z-index:10;width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s,opacity .2s;opacity:0;backdrop-filter:blur(4px)}
+.arrow:hover{background:rgba(255,255,255,0.15)}
+.arrow:active{background:rgba(255,255,255,0.25)}
+#prev{left:12px}
+#next{right:12px}
+body:hover .arrow,.arrow.show{opacity:1}
+/* Watermark */
+.watermark{position:fixed;bottom:20px;right:20px;z-index:10;color:rgba(255,255,255,0.2);font-size:12px;font-weight:300;letter-spacing:1px;pointer-events:none;transform:rotate(-12deg);text-shadow:0 1px 3px rgba(0,0,0,0.4);user-select:none}
+/* Loading */
+.loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none;opacity:0;transition:opacity .3s}
+.loading.show{opacity:1}
+.loading::after{content:'';width:24px;height:24px;border:2px solid rgba(255,255,255,0.15);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Tap zones (mobile) */
+.tap-zone{position:fixed;top:0;bottom:60px;width:28%;z-index:2}
+.tap-zone.left{left:0}
+.tap-zone.right{right:0}
+/* Responsive */
+@media(max-width:640px){#header{padding:12px 16px}.arrow{width:40px;height:40px;font-size:20px}#prev{left:8px}#next{right:8px}body:not(.touching) .arrow{opacity:1}.watermark{bottom:14px;right:14px;font-size:11px}}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <span class="title">呼伦贝尔之行</span>
+  <span class="counter" id="counter"></span>
+</div>
+
+<div id="slides"></div>
+
+<button class="arrow" id="prev">&#8249;</button>
+<button class="arrow" id="next">&#8250;</button>
+
+<div class="tap-zone left" id="zone-left"></div>
+<div class="tap-zone right" id="zone-right"></div>
+
+<div class="watermark">&copy; My Album</div>
+<div class="loading" id="loading"></div>
+
+<script>
+// ════════════════════════════════════════
+//  配置
+// ════════════════════════════════════════
+const ALBUM_TITLE = '呼伦贝尔之行'
+const WATERMARK_TEXT = '\u00A9 My Album'
+const PHOTOS = [
+  'photo-01.jpg','photo-02.jpg','photo-03.jpg','photo-04.jpg',
+  'photo-05.jpg','photo-06.jpg','photo-07.jpg','photo-08.jpg',
+  'photo-09.jpg','photo-10.jpg','photo-11.jpg','photo-12.jpg',
+  'photo-13.jpg','photo-14.jpg','photo-15.jpg','photo-16.jpg',
+  'photo-17.jpg','photo-18.jpg','photo-19.jpg','photo-20.jpg',
+  'photo-21.jpg','photo-22.jpg','photo-23.jpg','photo-24.jpg',
+  'photo-25.jpg','photo-26.jpg','photo-27.jpg','photo-28.jpg',
+  'photo-29.jpg','photo-30.jpg','photo-31.jpg','photo-32.jpg',
+  'photo-33.jpg','photo-34.jpg','photo-35.jpg','photo-36.jpg',
+  'photo-37.jpg','photo-38.jpg',  'photo-39.jpg','photo-40.jpg','photo-41.jpg',
+  'video-01.mp4','video-02.mp4','video-03.mp4','video-04.mp4','video-05.mp4',
+]
+
+// ════════════════════════════════════════
+//  逻辑
+// ════════════════════════════════════════
+const VIDEO_EXTS = ['mp4','webm','mov','avi']
+const isVideo = src => VIDEO_EXTS.includes(src.split('.').pop().toLowerCase())
+const getMime = src => ({mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime',avi:'video/x-msvideo'}[src.split('.').pop().toLowerCase()]||'video/mp4')
+
+const items = PHOTOS.map(s => ({src:'photos/'+s,type:isVideo(s)?'video':'image'}))
+const total = items.length
+let current = 0
+let isTransitioning = false
+
+const $ = id => document.getElementById(id)
+const slides = $('slides')
+const counter = $('counter')
+const loading = $('loading')
+const header = $('header')
+
+document.querySelector('.title').textContent = ALBUM_TITLE
+document.querySelector('.watermark').textContent = WATERMARK_TEXT
+
+function buildSlides() {
+  slides.innerHTML = items.map((item, i) => {
+    const active = i === 0 ? ' style="display:flex"' : ''
+    const isVid = item.type === 'video'
+    return `<div class="slide" data-index="${i}"${active}>${
+      isVid
+        ? `<video controls preload="metadata" muted playsinline data-src="${item.src}" data-loaded="false"></video>`
+        : `<img src="${item.src}" alt="" data-index="${i}" data-loaded="true">`
+    }</div>`
+  }).join('')
+}
+buildSlides()
+
+function updateCounter() { counter.textContent = `${current+1} / ${total}` }
+function updateArrows() {
+  $('prev').style.display = current === 0 ? 'none' : ''
+  $('next').style.display = current === total - 1 ? 'none' : ''
+}
+
+function showLoading() { loading.classList.add('show') }
+function hideLoading() { loading.classList.remove('show') }
+
+function goTo(index) {
+  if (isTransitioning || index < 0 || index >= total || index === current) return
+  isTransitioning = true
+  showLoading()
+
+  const prevSlide = slides.children[current]
+  const nextSlide = slides.children[index]
+
+  prevSlide.style.display = 'none'
+  nextSlide.style.display = 'flex'
+  current = index
+  updateCounter()
+  updateArrows()
+
+  // Load video if needed
+  const vid = nextSlide.querySelector('video')
+  if (vid && vid.dataset.loaded === 'false') {
+    const src = vid.dataset.src
+    vid.src = src
+    vid.load()
+    vid.dataset.loaded = 'true'
+    vid.onloadeddata = () => { hideLoading(); isTransitioning = false }
+    vid.onerror = () => { hideLoading(); isTransitioning = false }
+  } else {
+    hideLoading()
+    isTransitioning = false
+  }
+
+  // Pause other videos
+  slides.querySelectorAll('video').forEach(v => { if (v !== vid) v.pause() })
+}
+
+function goPrev() { goTo(current - 1) }
+function goNext() { goTo(current + 1) }
+
+$('prev').addEventListener('click', goPrev)
+$('next').addEventListener('click', goNext)
+$('zone-left').addEventListener('click', goPrev)
+$('zone-right').addEventListener('click', goNext)
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') goPrev()
+  if (e.key === 'ArrowRight') goNext()
+})
+
+// Touch swipe
+let sx = 0, ex = 0
+slides.addEventListener('touchstart', e => {
+  sx = e.changedTouches[0].screenX
+  document.body.classList.add('touching')
+}, { passive: true })
+slides.addEventListener('touchend', e => {
+  ex = e.changedTouches[0].screenX
+  const diff = sx - ex
+  if (Math.abs(diff) > 40) diff > 0 ? goNext() : goPrev()
+  document.body.classList.remove('touching')
+}, { passive: true })
+
+// Auto show arrows on mobile
+document.body.addEventListener('touchstart', () => {
+  document.querySelectorAll('.arrow').forEach(a => a.classList.add('show'))
+}, { once: true })
+
+// Init first slide (load video if needed)
+const firstSlide = slides.children[0]
+const firstVid = firstSlide.querySelector('video')
+if (firstVid) {
+  firstVid.src = firstVid.dataset.src
+  firstVid.load()
+  firstVid.dataset.loaded = 'true'
+  firstVid.onerror = () => {}
+}
+
+updateCounter()
+updateArrows()
+hideLoading()
+</script>
+</body>
+</html>
