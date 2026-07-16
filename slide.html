@@ -176,9 +176,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') goNext()
 })
 
-// Edge tap/swipe (left 25% / right 25%)
+// Edge tap/swipe (left 25% / right 25%) — skip on video controls
 let touchX = 0
 document.addEventListener('touchstart', e => {
+  if (e.target.closest('video')) { touchX = 0; return }
   const x = e.changedTouches[0].screenX
   const w = window.innerWidth
   if (x > w * 0.25 && x < w * 0.75) { touchX = 0; return }
