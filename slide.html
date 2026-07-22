@@ -109,9 +109,9 @@ document.querySelector('.watermark').textContent = WATERMARK_TEXT
 
 function buildSlides() {
   slides.innerHTML = items.map((item, i) => {
-    const active = i === 0 ? ' style="display:flex"' : ''
+    const display = i === current ? 'flex' : 'none'
     const isVid = item.type === 'video'
-    return `<div class="slide" data-index="${i}"${active}>${
+    return `<div class="slide" data-index="${i}" style="display:${display}">${
       isVid
         ? `<video controls preload="metadata" muted playsinline data-src="${item.src}" data-loaded="false"></video>`
         : `<img src="${item.src}" alt="" data-index="${i}" data-loaded="true">`
